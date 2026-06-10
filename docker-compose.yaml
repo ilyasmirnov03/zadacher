@@ -1,0 +1,92 @@
+services:
+  # ---------------- MongoDB ----------------
+  mongodb:
+    image: mongo:7.0.35
+    container_name: mongodb
+    restart: unless-stopped
+    environment:
+      # Explicitly links .env variables to MongoDB's native env vars
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASS}
+      MONGO_INITDB_DATABASE: ${MONGO_DB_NAME}
+    volumes:
+      - mongodb_data:/data/db
+    ports:
+      - "27017:27017"
+    networks:
+      - app_network
+
+  # ---------------- PostgreSQL ----------------
+  postgres:
+    image: postgres:18.4-alpine3.23
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      # Explicitly links .env variables to PostgreSQL's native env vars
+      POSTGRES_USER: ${PG_USER}
+      POSTGRES_PASSWORD: ${PG_PASS}
+      POSTGRES_DB: ${PG_DB_NAME}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    ports:
+      - "5432:5432"
+    networks:
+      - app_network
+
+  # ---------------- Kafka ----------------
+  kafka:
+    image: apache/kafka:4.3.0
+    container_name: kafka
+    restart: unless-stopped
+    environment:
+      # Maps .env variables to Kafka's KRaft configuration
+      KAFKA_NODE_ID: ${KAFKA_NODE_ID}
+      KAFKA_PROCESS_ROLES: ${KAFKA_PROCESS_ROLES}
+      KAFKA_CONTROLLER_QUORUM_VOTERS: ${KAFKA_CONTROLLER_QUORUM}
+      KAFKA_CONTROLLER_LISTENER_NAMES: ${KAFKA_CONTROLLER_LISTENER_NAMES}
+      KAFKA_LISTENERS: ${KAFKA_LISTENERS}
+      KAFKA_ADVERTISED_LISTENERS: ${KAFKA_ADVERTISED_LISTENERS}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: ${KAFKA_SECURITY_PROTOCOL_MAP}
+      KAFKA_INTER_BROKER_LISTENER_NAME: ${KAFKA_INTER_BROKER}
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: ${KAFKA_OFFSETS_REPLICATION}
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: ${KAFKA_TXN_LOG_REPLICATION}
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: ${KAFKA_TXN_LOG_MIN_ISR}
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: ${KAFKA_AUTO_CREATE}
+      KAFKA_MIN_INSYNC_REPLICAS: ${KAFKA_MIN_INSYNC}
+      KAFKA_LOG_RETENTION_HOURS: ${KAFKA_LOG_RETENTION_HOURS}
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: ${KAFKA_GROUP_REBALANCE_DELAY}
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    networks:
+      - app_network
+
+  # ---------------- Kafka UI ----------------
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    restart: unless-stopped
+    environment:
+      # Maps .env variables to Kafka UI's expected configuration
+      KAFKA_CLUSTERS_0_NAME: ${KAFKA_UI_NAME}
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: ${KAFKA_UI_BOOTSTRAP}
+      KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL: ${KAFKA_UI_PROTOCOL}
+    ports:
+      - "8080:8080"
+    depends_on:
+      - kafka
+    networks:
+      - app_network
+
+# Persistent storage for databases
+volumes:
+  mongodb_data:
+  postgres_data:
+  kafka_data:
+
+# Custom bridge network ensures reliable DNS resolution between services
+networks:
+  app_network:
+    driver: bridge
